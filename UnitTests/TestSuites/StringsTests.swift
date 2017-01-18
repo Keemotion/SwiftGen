@@ -18,10 +18,10 @@ class StringsTests: XCTestCase {
   func testEmpty() {
     let parser = StringsFileParser()
 
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
     let result = try! template.render(parser.stencilContext())
 
-    let expected = self.fixtureString("Strings-Empty.swift.out")
+    let expected = Fixtures.string(for: "Strings-Empty.swift.out")
     XCTDiffStrings(result, expected)
   }
 
@@ -30,107 +30,179 @@ class StringsTests: XCTestCase {
     parser.addEntry(StringsFileParser.Entry(key: "Title", translation: "My awesome title"))
     parser.addEntry(StringsFileParser.Entry(key: "Greetings", translation: "Hello, my name is %@ and I'm %d", types: .Object, .Int))
 
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
     let result = try! template.render(parser.stencilContext())
 
-    let expected = self.fixtureString("Strings-Entries-Defaults.swift.out")
-    XCTDiffStrings(result, expected)
-  }
-
-  func testLinesWithDefaults() {
-    let parser = StringsFileParser()
-    if let e = StringsFileParser.Entry(line: "\"AppTitle\"    =   \"My awesome title\"  ; // Yeah") {
-      parser.addEntry(e)
-    }
-    if let e = StringsFileParser.Entry(line: "\"GreetingsAndAge\"=\"My name is %@, I am %d\";/* hello */") {
-      parser.addEntry(e)
-    }
-
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
-    let result = try! template.render(parser.stencilContext())
-
-    let expected = self.fixtureString("Strings-Lines-Defaults.swift.out")
+    let expected = Fixtures.string(for: "Strings-Entries-Default.swift.out")
     XCTDiffStrings(result, expected)
   }
 
   func testFileWithDefaults() {
     let parser = StringsFileParser()
-    try! parser.parseStringsFile(fixturePath("Localizable.strings"))
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
 
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
     let result = try! template.render(parser.stencilContext())
 
-    let expected = self.fixtureString("Strings-File-Defaults.swift.out")
+    let expected = Fixtures.string(for: "Strings-File-Default.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testMultiline() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "LocMultiline.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-Multiline.swift.out")
     XCTDiffStrings(result, expected)
   }
 
   func testUTF8FileWithDefaults() {
     let parser = StringsFileParser()
-    try! parser.parseStringsFile(fixturePath("LocUTF8.strings"))
+    try! parser.parseFile(at: Fixtures.path(for: "LocUTF8.strings"))
 
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
     let result = try! template.render(parser.stencilContext())
 
-    let expected = self.fixtureString("Strings-File-UTF8-Defaults.swift.out")
+    let expected = Fixtures.string(for: "Strings-File-UTF8-Default.swift.out")
     XCTDiffStrings(result, expected)
   }
 
   func testFileWithCustomName() {
     let parser = StringsFileParser()
-    try! parser.parseStringsFile(fixturePath("Localizable.strings"))
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
 
-    let template = GenumTemplate(templateString: fixtureString("strings-default.stencil"))
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-default.stencil"), environment: genumEnvironment())
     let result = try! template.render(parser.stencilContext(enumName: "XCTLoc"))
 
-    let expected = self.fixtureString("Strings-File-CustomName.swift.out")
+    let expected = Fixtures.string(for: "Strings-File-CustomName.swift.out")
     XCTDiffStrings(result, expected)
   }
 
+  func testFileWithSwift3() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-swift3.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-File-Swift3.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+  
+  func testFileWithoutCommentsAndSwift3() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+    
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-no-comments-swift3.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+    
+    let expected = Fixtures.string(for: "Strings-File-NoComments-Swift3.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testFileWithStructured() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-structured.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-File-Structured.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testFileWithStructuredOnly() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "LocStructuredOnly.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-structured.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-File-Structured-Only.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testFileWithDotSyntax() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-dot-syntax.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-File-Dot-Syntax.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testFileWithDotSyntaxSwift3() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-dot-syntax-swift3.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+
+    let expected = Fixtures.string(for: "Strings-File-Dot-Syntax-Swift3.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+
+  func testFileWithGenstringsTemplate() {
+    let parser = StringsFileParser()
+    try! parser.parseFile(at: Fixtures.path(for: "Localizable.strings"))
+    
+    let template = GenumTemplate(templateString: Fixtures.string(for: "strings-genstrings.stencil"), environment: genumEnvironment())
+    let result = try! template.render(parser.stencilContext())
+    
+    let expected = Fixtures.string(for: "Strings-Localizable-Genstrings.swift.out")
+    XCTDiffStrings(result, expected)
+  }
+  
   ////////////////////////////////////////////////////////////////////////
 
   func testParseStringPlaceholder() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%@")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%@")
     XCTAssertEqual(placeholders, [.Object])
   }
 
   func testParseFloatPlaceholder() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%f")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%f")
     XCTAssertEqual(placeholders, [.Float])
   }
 
   func testParseDoublePlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%g-%e")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%g-%e")
     XCTAssertEqual(placeholders, [.Float, .Float])
   }
 
   func testParseFloatWithPrecisionPlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%1.2f : %.3f : %+3f : %-6.2f")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%1.2f : %.3f : %+3f : %-6.2f")
     XCTAssertEqual(placeholders, [.Float, .Float, .Float, .Float])
   }
 
   func testParseIntPlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%d-%i-%o-%u-%x")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%d-%i-%o-%u-%x")
     XCTAssertEqual(placeholders, [.Int, .Int, .Int, .Int, .Int])
   }
 
   func testParseCCharAndStringPlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%c-%s")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%c-%s")
     XCTAssertEqual(placeholders, [.Char, .CString])
   }
 
   func testParsePositionalPlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%2$d-%4$f-%3$@-%c")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%2$d-%4$f-%3$@-%c")
     XCTAssertEqual(placeholders, [.Char, .Int, .Object, .Float])
   }
 
   func testParseComplexFormatPlaceholders() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%2$1.3d - %4$-.7f - %3$@ - %% - %5$+3c - %%")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%2$1.3d - %4$-.7f - %3$@ - %% - %5$+3c - %%")
     // positions 2, 4, 3, 5 set to Int, Float, Object, Char, and position 1 not matched, defaulting to Unknown
     XCTAssertEqual(placeholders, [.Unknown, .Int, .Object, .Float, .Char])
   }
 
   func testParseEscapePercentSign() {
-    let placeholders = StringsFileParser.PlaceholderType.fromFormatString("%%foo")
+    let placeholders = StringsFileParser.PlaceholderType.placeholders(fromFormat: "%%foo")
     // Must NOT map to [.Float]
     XCTAssertEqual(placeholders, [])
   }

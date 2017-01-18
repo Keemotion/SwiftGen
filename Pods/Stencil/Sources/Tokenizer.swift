@@ -1,76 +1,78 @@
 import Foundation
 
 
-/// Split a string by spaces leaving quoted phrases together
-func smartSplit(value: String) -> [String] {
-  var word = ""
-  var separator: Character = " "
-  var components: [String] = []
+extension String {
+  /// Split a string by a separator leaving quoted phrases together
+  func smartSplit(separator: Character = " ") -> [String] {
+    var word = ""
+    var components: [String] = []
+    var separate: Character = separator
 
-  for character in value.characters {
-    if character == separator {
-      if separator != " " {
-        word.append(separator)
-      }
+    for character in self.characters {
+      if character == separate {
+        if separate != separator {
+          word.append(separate)
+        }
 
-      if !word.isEmpty {
-        components.append(word)
-        word = ""
-      }
+        if !word.isEmpty {
+          components.append(word)
+          word = ""
+        }
 
-      separator = " "
-    } else {
-      if separator == " " && (character == "'" || character == "\"") {
-        separator = character
+        separate = separator
+      } else {
+        if separate == separator && (character == "'" || character == "\"") {
+          separate = character
+        }
+        word.append(character)
       }
-      word.append(character)
     }
-  }
 
-  if !word.isEmpty {
-    components.append(word)
-  }
+    if !word.isEmpty {
+      components.append(word)
+    }
 
-  return components
+    return components
+  }
 }
 
 
 public enum Token : Equatable {
   /// A token representing a piece of text.
-  case Text(value: String)
+  case text(value: String)
 
   /// A token representing a variable.
-  case Variable(value: String)
+  case variable(value: String)
 
   /// A token representing a comment.
-  case Comment(value: String)
+  case comment(value: String)
 
   /// A token representing a template block.
-  case Block(value: String)
+  case block(value: String)
 
   /// Returns the underlying value as an array seperated by spaces
   public func components() -> [String] {
     switch self {
-    case .Block(let value):
-      return smartSplit(value)
-    case .Variable(let value):
-      return smartSplit(value)
-    case .Text(let value):
-      return smartSplit(value)
-    case .Comment(let value):
-      return smartSplit(value)
+    case .block(let value):
+      return value.smartSplit()
+    case .variable(let value):
+      return value.smartSplit()
+    case .text(let value):
+      return value.smartSplit()
+    case .comment(let value):
+      return value.smartSplit()
     }
   }
 
   public var contents: String {
     switch self {
-    case .Block(let value):
+    case .block(let value):
       return value
-    case .Variable(let value):
+    case .variable(let value):
       return value
-    case .Text(let value):
+    case .text(let value):
       return value
-    case .Comment(let value):
+    case .comment(let value):
       return value
     }
   }
@@ -79,13 +81,13 @@ public enum Token : Equatable {
 
 public func == (lhs: Token, rhs: Token) -> Bool {
   switch (lhs, rhs) {
-  case (.Text(let lhsValue), .Text(let rhsValue)):
+  case (.text(let lhsValue), .text(let rhsValue)):
     return lhsValue == rhsValue
-  case (.Variable(let lhsValue), .Variable(let rhsValue)):
+  case (.variable(let lhsValue), .variable(let rhsValue)):
     return lhsValue == rhsValue
-  case (.Block(let lhsValue), .Block(let rhsValue)):
+  case (.block(let lhsValue), .block(let rhsValue)):
     return lhsValue == rhsValue
-  case (.Comment(let lhsValue), .Comment(let rhsValue)):
+  case (.comment(let lhsValue), .comment(let rhsValue)):
     return lhsValue == rhsValue
   default:
     return false

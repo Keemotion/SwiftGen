@@ -1,12 +1,15 @@
 import Foundation
 
 
+typealias Number = Float
+
+
 class FilterExpression : Resolvable {
-  let filters: [Filter]
+  let filters: [(FilterType, [Variable])]
   let variable: Variable
 
   init(token: String, parser: TokenParser) throws {
-    let bits = token.characters.split("|").map({ String($0).trim(" ") })
+    let bits = token.characters.split(separator: "|").map({ String($0).trim(character: " ") })
     if bits.isEmpty {
       filters = []
       variable = Variable("")
@@ -14,21 +17,26 @@ class FilterExpression : Resolvable {
     }
 
     variable = Variable(bits[0])
-    let filterBits = bits[1 ..< bits.endIndex]
+    let filterBits = bits[bits.indices.suffix(from: 1)]
 
     do {
-      filters = try filterBits.map { try parser.findFilter($0) }
+      filters = try filterBits.map {
+        let (name, arguments) = parseFilterComponents(token: $0)
+        let filter = try parser.findFilter(name)
+        return (filter, arguments)
+      }
     } catch {
       filters = []
       throw error
     }
   }
 
-  func resolve(context: Context) throws -> Any? {
+  func resolve(_ context: Context) throws -> Any? {
     let result = try variable.resolve(context)
 
     return try filters.reduce(result) { x, y in
-      return try y(x)
+      let arguments = try y.1.map { try $0.resolve(context) }
+      return try y.0.invoke(value: x, arguments: arguments)
     }
   }
 }
@@ -42,17 +50,22 @@ public struct Variable : Equatable, Resolvable {
     self.variable = variable
   }
 
-  private func lookup() -> [String] {
-    return variable.characters.split(".").map(String.init)
+  fileprivate func lookup() -> [String] {
+    return variable.characters.split(separator: ".").map(String.init)
   }
 
   /// Resolve the variable in the given context
-  public func resolve(context: Context) throws -> Any? {
+  public func resolve(_ context: Context) throws -> Any? {
     var current: Any? = context
 
     if (variable.hasPrefix("'") && variable.hasSuffix("'")) || (variable.hasPrefix("\"") && variable.hasSuffix("\"")) {
       // String literal
-      return variable[variable.startIndex.successor() ..< variable.endIndex.predecessor()]
+      return variable[variable.characters.index(after: variable.startIndex) ..< variable.characters.index(before: variable.endIndex)]
+    }
+
+    if let number = Number(variable) {
+      // Number literal
+      return number
     }
 
     for bit in lookup() {
@@ -64,7 +77,11 @@ public struct Variable : Equatable, Resolvable {
         current = dictionary[bit]
       } else if let array = current as? [Any] {
         if let index = Int(bit) {
-          current = array[index]
+          if index >= 0 && index < array.count {
+            current = array[index]
+          } else {
+            current = nil
+          }
         } else if bit == "first" {
           current = array.first
         } else if bit == "last" {
@@ -76,11 +93,24 @@ public struct Variable : Equatable, Resolvable {
 #if os(Linux)
         return nil
 #else
-        current = object.valueForKey(bit)
+        current = object.value(forKey: bit)
 #endif
+      } else if let value = current {
+        let mirror = Mirror(reflecting: value)
+        current = mirror.descendant(bit)
+
+        if current == nil {
+          return nil
+        }
       } else {
         return nil
       }
+    }
+
+    if let resolvable = current as? Resolvable {
+      current = try resolvable.resolve(context)
+    } else if let node = current as? NodeType {
+      current = try node.render(context)
     }
 
     return normalize(current)
@@ -92,7 +122,7 @@ public func ==(lhs: Variable, rhs: Variable) -> Bool {
 }
 
 
-func normalize(current: Any?) -> Any? {
+func normalize(_ current: Any?) -> Any? {
   if let current = current as? Normalizable {
     return current.normalize()
   }
@@ -130,4 +160,14 @@ extension Dictionary : Normalizable {
 
     return dictionary
   }
+}
+
+func parseFilterComponents(token: String) -> (String, [Variable]) {
+  var components = token.smartSplit(separator: ":")
+  let name = components.removeFirst()
+  let variables = components
+    .joined(separator: ":")
+    .smartSplit(separator: ",")
+    .map { Variable($0) }
+  return (name, variables)
 }

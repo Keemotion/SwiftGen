@@ -1,20 +1,20 @@
 class BlockContext {
   class var contextKey: String { return "block_context" }
 
-  var blocks: [String:BlockNode]
+  var blocks: [String: BlockNode]
 
-  init(blocks: [String:BlockNode]) {
+  init(blocks: [String: BlockNode]) {
     self.blocks = blocks
   }
 
-  func pop(blockName: String) -> BlockNode? {
-    return blocks.removeValueForKey(blockName)
+  func pop(_ blockName: String) -> BlockNode? {
+    return blocks.removeValue(forKey: blockName)
   }
 }
 
 
-extension CollectionType {
-  func any(closure: Generator.Element -> Bool) -> Generator.Element? {
+extension Collection {
+  func any(_ closure: (Iterator.Element) -> Bool) -> Iterator.Element? {
     for element in self {
       if closure(element) {
         return element
@@ -30,7 +30,7 @@ class ExtendsNode : NodeType {
   let templateName: Variable
   let blocks: [String:BlockNode]
 
-  class func parse(parser: TokenParser, token: Token) throws -> NodeType {
+  class func parse(_ parser: TokenParser, token: Token) throws -> NodeType {
     let bits = token.components()
 
     guard bits.count == 2 else {
@@ -42,10 +42,9 @@ class ExtendsNode : NodeType {
       throw TemplateSyntaxError("'extends' cannot appear more than once in the same template")
     }
 
-    let blockNodes = parsedNodes.filter { node in node is BlockNode }
+    let blockNodes = parsedNodes.flatMap { $0 as? BlockNode }
 
-    let nodes = blockNodes.reduce([String:BlockNode]()) { (accumulator, node:NodeType) -> [String:BlockNode] in
-      let node = (node as! BlockNode)
+    let nodes = blockNodes.reduce([String: BlockNode]()) { (accumulator, node) -> [String: BlockNode] in
       var dict = accumulator
       dict[node.name] = node
       return dict
@@ -59,25 +58,29 @@ class ExtendsNode : NodeType {
     self.blocks = blocks
   }
 
-  func render(context: Context) throws -> String {
-    guard let loader = context["loader"] as? TemplateLoader else {
-      throw TemplateSyntaxError("Template loader not in context")
-    }
-
+  func render(_ context: Context) throws -> String {
     guard let templateName = try self.templateName.resolve(context) as? String else {
       throw TemplateSyntaxError("'\(self.templateName)' could not be resolved as a string")
     }
 
-    guard let template = loader.loadTemplate(templateName) else {
-      let paths:String = loader.paths.map { $0.description }.joinWithSeparator(", ")
-      throw TemplateSyntaxError("'\(templateName)' template not found in \(paths)")
+    let template = try context.environment.loadTemplate(name: templateName)
+
+    let blockContext: BlockContext
+    if let context = context[BlockContext.contextKey] as? BlockContext {
+      blockContext = context
+
+      for (key, value) in blocks {
+        if !blockContext.blocks.keys.contains(key) {
+          blockContext.blocks[key] = value
+        }
+      }
+    } else {
+      blockContext = BlockContext(blocks: blocks)
     }
 
-    let blockContext = BlockContext(blocks: blocks)
-    context.push([BlockContext.contextKey: blockContext])
-    let result = try template.render(context)
-    context.pop()
-    return result
+    return try context.push(dictionary: [BlockContext.contextKey: blockContext]) {
+      return try template.render(context)
+    }
   }
 }
 
@@ -86,16 +89,16 @@ class BlockNode : NodeType {
   let name: String
   let nodes: [NodeType]
 
-  class func parse(parser: TokenParser, token: Token) throws -> NodeType {
+  class func parse(_ parser: TokenParser, token: Token) throws -> NodeType {
     let bits = token.components()
 
     guard bits.count == 2 else {
-      throw TemplateSyntaxError("'block' tag takes one argument, the template file to be included")
+      throw TemplateSyntaxError("'block' tag takes one argument, the block name")
     }
 
     let blockName = bits[1]
     let nodes = try parser.parse(until(["endblock"]))
-    parser.nextToken()
+    _ = parser.nextToken()
     return BlockNode(name:blockName, nodes:nodes)
   }
 
@@ -104,9 +107,11 @@ class BlockNode : NodeType {
     self.nodes = nodes
   }
 
-  func render(context: Context) throws -> String {
-    if let blockContext = context[BlockContext.contextKey] as? BlockContext, node = blockContext.pop(name) {
-      return try node.render(context)
+  func render(_ context: Context) throws -> String {
+    if let blockContext = context[BlockContext.contextKey] as? BlockContext, let node = blockContext.pop(name) {
+      return try context.push(dictionary: ["block": ["super": self]]) {
+        return try node.render(context)
+      }
     }
 
     return try renderNodes(nodes, context)

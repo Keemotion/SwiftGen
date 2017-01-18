@@ -1,47 +1,32 @@
 {
   "name": "Stencil",
-  "version": "0.4.0",
+  "version": "0.7.1",
   "summary": "Stencil is a simple and powerful template language for Swift.",
-  "homepage": "https://github.com/kylef/Stencil",
+  "homepage": "https://stencil.fuller.li",
   "license": {
     "type": "BSD",
     "file": "LICENSE"
   },
   "authors": {
-    "Kyle Fuller": "inbox@kylefuller.co.uk"
+    "Kyle Fuller": "kyle@fuller.li"
   },
-  "social_media_url": "http://twitter.com/kylefuller",
+  "social_media_url": "https://twitter.com/kylefuller",
   "source": {
     "git": "https://github.com/kylef/Stencil.git",
-    "tag": "0.4.0"
+    "tag": "0.7.1"
   },
   "source_files": [
-    "Stencil/*.swift",
-    "Stencil/TemplateLoader/*.swift"
+    "Sources/*.swift"
   ],
   "platforms": {
     "ios": "8.0",
-    "osx": "10.9"
+    "osx": "10.9",
+    "tvos": "9.0"
   },
   "requires_arc": true,
   "dependencies": {
     "PathKit": [
-      "~> 0.5.0"
+      "~> 0.7.0"
     ]
-  },
-  "test_specification": {
-    "source_files": [
-      "StencilSpecs/*.swift",
-      "StencilSpecs/TemplateLoader/*.swift",
-      "StencilSpecs/Nodes/*.swift"
-    ],
-    "dependencies": {
-      "Spectre": [
-        "~> 0.4.1"
-      ],
-      "PathKit": [
-        "~> 0.5.0"
-      ]
-    }
   }
 }

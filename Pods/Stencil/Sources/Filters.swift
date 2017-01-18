@@ -1,32 +1,40 @@
-func toString(value: Any?) -> String? {
-  if let value = value as? String {
+func capitalise(_ value: Any?) -> Any? {
+  return stringify(value).capitalized
+}
+
+func uppercase(_ value: Any?) -> Any? {
+  return stringify(value).uppercased()
+}
+
+func lowercase(_ value: Any?) -> Any? {
+  return stringify(value).lowercased()
+}
+
+func defaultFilter(value: Any?, arguments: [Any?]) -> Any? {
+  if let value = value {
     return value
-  } else if let value = value as? CustomStringConvertible {
-    return value.description
+  }
+
+  for argument in arguments {
+    if let argument = argument {
+      return argument
+    }
   }
 
   return nil
 }
 
-func capitalise(value: Any?) -> Any? {
-  if let value = toString(value) {
-    return value.capitalizedString
+func joinFilter(value: Any?, arguments: [Any?]) throws -> Any? {
+  guard arguments.count < 2 else {
+    throw TemplateSyntaxError("'join' filter takes a single argument")
   }
 
-  return value
-}
+  let separator = stringify(arguments.first ?? "")
 
-func uppercase(value: Any?) -> Any? {
-  if let value = toString(value) {
-    return value.uppercaseString
-  }
-
-  return value
-}
-
-func lowercase(value: Any?) -> Any? {
-  if let value = toString(value) {
-    return value.lowercaseString
+  if let value = value as? [Any] {
+    return value
+      .map(stringify)
+      .joined(separator: separator)
   }
 
   return value

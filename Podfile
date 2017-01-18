@@ -1,15 +1,19 @@
 platform :osx, '10.9'
 use_frameworks!
 
-target 'swiftgen' do
-  pod 'Commander'
-  pod 'PathKit'
-  pod 'Stencil'
+def genumkit_pods
+  pod 'PathKit', '~> 0.7.0', :inhibit_warnings => true
+  pod 'Stencil', :git => 'https://github.com/kylef/Stencil', :inhibit_warnings => true
   pod 'GenumKit', :path => 'GenumKit'
 end
 
+target 'swiftgen' do
+  pod 'Commander', '~> 0.6.0', :inhibit_warnings => true
+  genumkit_pods()
+end
+
 target 'UnitTests' do
-  pod 'GenumKit', :path => 'GenumKit'
+  genumkit_pods()
 end
 
 post_install do |installer|

@@ -1,4 +1,4 @@
-public func until(tags: [String]) -> ((TokenParser, Token) -> Bool) {
+public func until(_ tags: [String]) -> ((TokenParser, Token) -> Bool) {
   return { parser, token in
     if let name = token.components().first {
       for tag in tags {
@@ -12,18 +12,17 @@ public func until(tags: [String]) -> ((TokenParser, Token) -> Bool) {
   }
 }
 
-public typealias Filter = Any? throws -> Any?
 
 /// A class for parsing an array of tokens and converts them into a collection of Node's
 public class TokenParser {
   public typealias TagParser = (TokenParser, Token) throws -> NodeType
 
-  private var tokens: [Token]
-  private let namespace: Namespace
+  fileprivate var tokens: [Token]
+  fileprivate let environment: Environment
 
-  public init(tokens: [Token], namespace: Namespace) {
+  public init(tokens: [Token], environment: Environment) {
     self.tokens = tokens
-    self.namespace = namespace
+    self.environment = environment
   }
 
   /// Parse the given tokens into nodes
@@ -31,33 +30,28 @@ public class TokenParser {
     return try parse(nil)
   }
 
-  public func parse(parse_until:((parser:TokenParser, token:Token) -> (Bool))?) throws -> [NodeType] {
+  public func parse(_ parse_until:((_ parser:TokenParser, _ token:Token) -> (Bool))?) throws -> [NodeType] {
     var nodes = [NodeType]()
 
     while tokens.count > 0 {
       let token = nextToken()!
 
       switch token {
-      case .Text(let text):
+      case .text(let text):
         nodes.append(TextNode(text: text))
-      case .Variable:
+      case .variable:
         nodes.append(VariableNode(variable: try compileFilter(token.contents)))
-      case .Block:
-        let tag = token.components().first
-
-        if let parse_until = parse_until where parse_until(parser: self, token: token) {
+      case .block:
+        if let parse_until = parse_until , parse_until(self, token) {
           prependToken(token)
           return nodes
         }
 
-        if let tag = tag {
-          if let parser = namespace.tags[tag] {
-            nodes.append(try parser(self, token))
-          } else {
-            throw TemplateSyntaxError("Unknown template tag '\(tag)'")
-          }
+        if let tag = token.components().first {
+          let parser = try findTag(name: tag)
+          nodes.append(try parser(self, token))
         }
-      case .Comment:
+      case .comment:
         continue
       }
     }
@@ -67,25 +61,38 @@ public class TokenParser {
 
   public func nextToken() -> Token? {
     if tokens.count > 0 {
-      return tokens.removeAtIndex(0)
+      return tokens.remove(at: 0)
     }
 
     return nil
   }
 
-  public func prependToken(token:Token) {
-    tokens.insert(token, atIndex: 0)
+  public func prependToken(_ token:Token) {
+    tokens.insert(token, at: 0)
   }
 
-  public func findFilter(name: String) throws -> Filter {
-    if let filter = namespace.filters[name] {
-      return filter
+  func findTag(name: String) throws -> Extension.TagParser {
+    for ext in environment.extensions {
+      if let filter = ext.tags[name] {
+        return filter
+      }
     }
 
-    throw TemplateSyntaxError("Invalid filter '\(name)'")
+    throw TemplateSyntaxError("Unknown template tag '\(name)'")
   }
 
-  func compileFilter(token: String) throws -> Resolvable {
+  func findFilter(_ name: String) throws -> FilterType {
+    for ext in environment.extensions {
+      if let filter = ext.filters[name] {
+        return filter
+      }
+    }
+
+    throw TemplateSyntaxError("Unknown filter '\(name)'")
+  }
+
+  public func compileFilter(_ token: String) throws -> Resolvable {
     return try FilterExpression(token: token, parser: self)
   }
+
 }

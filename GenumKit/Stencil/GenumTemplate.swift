@@ -7,41 +7,59 @@
 import Stencil
 
 // Workaround until Stencil fixes https://github.com/kylef/Stencil/issues/22
-public class GenumTemplate: Template {
-  public override init(templateString: String) {
+open class GenumTemplate: Template {
+  public required init(templateString: String, environment: Environment? = nil, name: String? = nil) {
     let templateStringWithMarkedNewlines = templateString
-      .stringByReplacingOccurrencesOfString("\n\n", withString: "\n\u{000b}\n")
-      .stringByReplacingOccurrencesOfString("\n\n", withString: "\n\u{000b}\n")
-    super.init(templateString: templateStringWithMarkedNewlines)
+        .replacingOccurrences(of: "\n\n", with: "\n\u{000b}\n")
+        .replacingOccurrences(of: "\n\n", with: "\n\u{000b}\n")
+    super.init(templateString: templateStringWithMarkedNewlines, environment: environment, name: name)
   }
 
-  public override func render(context: Context? = nil, namespace: Namespace? = nil) throws -> String {
-    return try removeExtraLines(super.render(context, namespace: namespace ?? GenumNamespace()))
+  open override func render(_ dictionary: [String: Any]? = nil) throws -> String {
+    return try removeExtraLines(from: super.render(dictionary))
   }
 
   // Workaround until Stencil fixes https://github.com/kylef/Stencil/issues/22
-  private func removeExtraLines(str: String) -> String {
-    let extraLinesRE = try! NSRegularExpression(pattern: "\\n([ \\t]*\\n)+", options: [])
-    let compact = extraLinesRE.stringByReplacingMatchesInString(str, options: [], range: NSRange(location: 0, length: str.utf16.count), withTemplate: "\n")
+  private func removeExtraLines(from str: String) -> String {
+    let extraLinesRE: NSRegularExpression = {
+      do {
+        return try NSRegularExpression(pattern: "\\n([ \\t]*\\n)+", options: [])
+      } catch {
+        fatalError("Regular Expression pattern error: \(error)")
+      }
+    }()
+    let compact = extraLinesRE.stringByReplacingMatches(
+      in: str,
+      options: [],
+      range: NSRange(location: 0, length: str.utf16.count),
+      withTemplate: "\n"
+    )
     let unmarkedNewlines = compact
-      .stringByReplacingOccurrencesOfString("\n\u{000b}\n", withString: "\n\n")
-      .stringByReplacingOccurrencesOfString("\n\u{000b}\n", withString: "\n\n")
+      .replacingOccurrences(of: "\n\u{000b}\n", with: "\n\n")
+      .replacingOccurrences(of: "\n\u{000b}\n", with: "\n\n")
     return unmarkedNewlines
   }
 }
 
-// Register Genum-specific tags & filters
-public class GenumNamespace: Namespace {
-  public override init() {
-    super.init()
-    self.registerTag("set", parser: SetNode.parse)
-    self.registerFilter("swiftIdentifier", filter: StringFilters.stringToSwiftIdentifier)
-    self.registerFilter("join", filter: ArrayFilters.join)
-    self.registerFilter("lowerFirstWord", filter: StringFilters.lowerFirstWord)
-    self.registerFilter("snakeToCamelCase", filter: StringFilters.snakeToCamelCase)
-    self.registerFilter("titlecase", filter: StringFilters.titlecase)
-    self.registerFilter("hexToInt", filter: NumFilters.hexToInt)
-    self.registerFilter("int255toFloat", filter: NumFilters.int255toFloat)
-    self.registerFilter("percent", filter: NumFilters.percent)
-  }
+// Create Genum-specific namespace including custom tags & filters
+func genumExtension() -> Extension {
+  let namespace = Extension()
+  namespace.registerTag("set", parser: SetNode.parse)
+  namespace.registerTag("macro", parser: MacroNode.parse)
+  namespace.registerTag("call", parser: CallNode.parse)
+  namespace.registerFilter("swiftIdentifier", filter: StringFilters.stringToSwiftIdentifier)
+  namespace.registerFilter("join", filter: ArrayFilters.join)
+  namespace.registerFilter("lowerFirstWord", filter: StringFilters.lowerFirstWord)
+  namespace.registerFilter("snakeToCamelCase", filter: StringFilters.snakeToCamelCase)
+  namespace.registerFilter("snakeToCamelCaseNoPrefix", filter: StringFilters.snakeToCamelCaseNoPrefix)
+  namespace.registerFilter("titlecase", filter: StringFilters.titlecase)
+  namespace.registerFilter("hexToInt", filter: NumFilters.hexToInt)
+  namespace.registerFilter("int255toFloat", filter: NumFilters.int255toFloat)
+  namespace.registerFilter("percent", filter: NumFilters.percent)
+  namespace.registerFilter("escapeReservedKeywords", filter: StringFilters.escapeReservedKeywords)
+  return namespace
+}
+
+public func genumEnvironment() -> Environment {
+  return Environment(extensions: [genumExtension()], templateClass: GenumTemplate.self)
 }

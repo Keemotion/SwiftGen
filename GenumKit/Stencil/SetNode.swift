@@ -6,11 +6,11 @@
 
 import Stencil
 
-public class SetNode: NodeType {
-  public let variableName: String
-  public let nodes: [NodeType]
+class SetNode: NodeType {
+  private let variableName: String
+  private let nodes: [NodeType]
 
-  public class func parse(parser: TokenParser, token: Token) throws -> NodeType {
+  class func parse(_ parser: TokenParser, token: Token) throws -> NodeType {
     let comps = token.components()
     guard comps.count == 2 else {
       throw TemplateSyntaxError("'set' tag takes one argument, the name of the variable to set")
@@ -26,15 +26,14 @@ public class SetNode: NodeType {
     return SetNode(variableName: variable, nodes: setNodes)
   }
 
-  public init(variableName: String, nodes: [NodeType]) {
+  init(variableName: String, nodes: [NodeType]) {
     self.variableName = variableName
     self.nodes = nodes
   }
 
-  public func render(context: Context) throws -> String {
+  func render(_ context: Context) throws -> String {
     let result = try renderNodes(nodes, context)
     context[variableName] = result
     return ""
   }
-
 }

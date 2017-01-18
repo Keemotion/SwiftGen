@@ -1,21 +1,23 @@
 /// A container for template variables.
 public class Context {
-  var dictionaries:[[String: Any]]
+  var dictionaries: [[String: Any?]]
 
-  /// Initialise a Context with a dictionary
-  public init(dictionary:[String: Any]) {
-    dictionaries = [dictionary]
-  }
+  public let environment: Environment
 
-  /// Initialise an empty Context
-  public init() {
-    dictionaries = []
+  init(dictionary: [String: Any]? = nil, environment: Environment? = nil) {
+    if let dictionary = dictionary {
+      dictionaries = [dictionary]
+    } else {
+      dictionaries = []
+    }
+
+    self.environment = environment ?? Environment()
   }
 
   public subscript(key: String) -> Any? {
     /// Retrieves a variable's value, starting at the current context and going upwards
     get {
-      for dictionary in Array(dictionaries.reverse()) {
+      for dictionary in Array(dictionaries.reversed()) {
         if let value = dictionary[key] {
           return value
         }
@@ -35,20 +37,33 @@ public class Context {
   }
 
   /// Push a new level into the Context
-  public func push(dictionary: [String: Any]? = nil) {
+  fileprivate func push(_ dictionary: [String: Any]? = nil) {
     dictionaries.append(dictionary ?? [:])
   }
 
   /// Pop the last level off of the Context
-  public func pop() -> [String: Any]? {
+  fileprivate func pop() -> [String: Any]? {
     return dictionaries.popLast()
   }
 
   /// Push a new level onto the context for the duration of the execution of the given closure
-  public func push<Result>(dictionary: [String: Any]? = nil, @noescape closure: (() throws -> Result)) rethrows -> Result {
+  public func push<Result>(dictionary: [String: Any]? = nil, closure: (() throws -> Result)) rethrows -> Result {
     push(dictionary)
-    let result = try closure()
-    pop()
-    return result
+    defer { _ = pop() }
+    return try closure()
+  }
+
+  public func flatten() -> [String: Any] {
+    var accumulator: [String: Any] = [:]
+
+    for dictionary in dictionaries {
+      for (key, value) in dictionary {
+        if let value = value {
+          accumulator.updateValue(value, forKey: key)
+        }
+      }
+    }
+
+    return accumulator
   }
 }
