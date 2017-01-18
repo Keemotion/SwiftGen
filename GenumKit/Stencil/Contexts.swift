@@ -110,6 +110,19 @@ extension AssetsCatalogParser {
   }
 }
 
+
+/* MARK: - Stencil Context for Images
+
+- `enumName`: `String` — name of the enum to generate
+- `images`: `Array<String>` — list of nib names
+*/
+extension XibParser {
+  public func stencilContext(enumName: String = "Nib") -> [String: Any] {
+    return ["enumName": enumName, "nibs": nibNames]
+  }
+}
+
+
 /* MARK: - Stencil Context for Storyboards
 
  - `sceneEnumName`: `String`

@@ -10,7 +10,7 @@ import PathKit
 
 // MARK: Common
 
-let templatesRelativePath = (Bundle.main.resourcePath ?? ".") + "/templates"
+let templatesRelativePath = "../templates"
 
 func templateOption(prefix: String) -> Option<String> {
   return Option<String>(
@@ -43,6 +43,7 @@ let main = Group {
   $0.addCommand("storyboards", "generate code for your Storyboard scenes and segues", storyboardsCommand)
   $0.addCommand("strings", "generate code for your Localizable.strings", stringsCommand)
   $0.addCommand("fonts", "generate code for your UIFonts", fontsCommand)
+  $0.addCommand("nibs", "generate code for your Xibs", nibsCommand)
 }
 
 let version = Bundle(for: GenumKit.GenumTemplate.self)
